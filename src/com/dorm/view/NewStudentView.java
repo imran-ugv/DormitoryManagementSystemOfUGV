@@ -1,6 +1,6 @@
 package com.dorm.view;
 
-import com.dorm.controller.StudentController; // Import Controller
+import com.dorm.controller.StudentController;
 import com.dorm.model.Student;
 import javax.swing.*;
 import javax.swing.border.*;
@@ -8,6 +8,10 @@ import javax.swing.text.MaskFormatter;
 import java.awt.*;
 import java.awt.event.*;
 
+/**
+ * Professional New Student Registration View.
+ * Synced with StudentController to prevent double-booking of rooms.
+ */
 public class NewStudentView extends JPanel {
     private JTextField txtName, txtFather, txtMother, txtPhone, txtEmail, txtUniID;
     private JFormattedTextField txtDOB;
@@ -16,24 +20,30 @@ public class NewStudentView extends JPanel {
     private JTextArea txtAddress;
     private JButton btnSave, btnClear;
 
-    // Using StudentController instead of direct DAO
+    // Delegate all logic to StudentController
     private StudentController controller = new StudentController();
 
     public NewStudentView() {
+        // Main UI Setup
         setBackground(new Color(245, 245, 245));
         setLayout(new BorderLayout());
 
         JPanel wrapper = new JPanel(new GridBagLayout());
         wrapper.setBackground(new Color(245, 245, 245));
 
+        // --- FORM CONTAINER CARD ---
         JPanel formContainer = new JPanel(new GridBagLayout());
         formContainer.setBackground(Color.WHITE);
-        formContainer.setBorder(new CompoundBorder(new LineBorder(new Color(200, 200, 200), 1), new EmptyBorder(40, 50, 40, 50)));
+        formContainer.setBorder(new CompoundBorder(
+                new LineBorder(new Color(200, 200, 200), 1),
+                new EmptyBorder(40, 50, 40, 50)
+        ));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.insets = new Insets(12, 15, 12, 15);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(12, 15, 12, 15);
 
-        // Header
+        // 1. Header
         JLabel lblHeader = new JLabel("NEW STUDENT REGISTRATION (UGV)");
         lblHeader.setFont(new Font("SansSerif", Font.BOLD, 28));
         lblHeader.setForeground(new Color(153, 153, 255));
@@ -42,8 +52,9 @@ public class NewStudentView extends JPanel {
         gbc.insets = new Insets(0, 0, 35, 0);
         formContainer.add(lblHeader, gbc);
 
-        gbc.gridwidth = 1; int row = 1;
+        gbc.gridwidth = 1;
         gbc.insets = new Insets(12, 10, 12, 10);
+        int row = 1;
 
         // --- LEFT COLUMN ---
         addLabel(formContainer, "<html>Full Name <font color='red'>*</font></html>", 0, row);
@@ -56,7 +67,8 @@ public class NewStudentView extends JPanel {
         JPanel genPnl = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); genPnl.setOpaque(false);
         rbMale = new JRadioButton("Male"); rbFemale = new JRadioButton("Female"); rbMale.setSelected(true);
         ButtonGroup bg = new ButtonGroup(); bg.add(rbMale); bg.add(rbFemale);
-        genPnl.add(rbMale); genPnl.add(rbFemale); formContainer.add(genPnl, getGbc(1, row++));
+        genPnl.add(rbMale); genPnl.add(rbFemale);
+        formContainer.add(genPnl, getGbc(1, row++));
 
         addLabel(formContainer, "<html>Phone Number <font color='red'>*</font></html>", 0, row);
         txtPhone = createTextField();
@@ -106,31 +118,54 @@ public class NewStudentView extends JPanel {
         mainScroll.getVerticalScrollBar().setUnitIncrement(16);
         add(mainScroll, BorderLayout.CENTER);
 
+        // Initial loading of available rooms
         loadRooms();
 
-        // --- SAVE LOGIC: Delegating to Controller ---
+        // --- BUTTON ACTIONS ---
         btnSave.addActionListener(e -> {
+            // Validation: Ensure a room is selected
+            if (cmbRoom.getSelectedItem() == null || cmbRoom.getSelectedItem().toString().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No available rooms left!", "Booking Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
             Student s = new Student(
                     txtName.getText().trim(), txtFather.getText().trim(), txtMother.getText().trim(),
                     rbMale.isSelected()?"Male":"Female", txtDOB.getText().trim(), txtPhone.getText().trim(),
                     txtEmail.getText().trim(), txtUniID.getText().trim(), cmbDegree.getSelectedItem().toString(),
-                    cmbRoom.getSelectedItem() == null ? "" : cmbRoom.getSelectedItem().toString(),
+                    cmbRoom.getSelectedItem().toString(),
                     txtAddress.getText(), "Living"
             );
 
+            // Delegate logic and final room check to Controller
             if (controller.handleRegistration(s, txtDOB.getText().trim(), this)) {
                 clearForm();
-                loadRooms();
+                loadRooms(); // CRITICAL: Refreshes the dropdown list from Database
             }
         });
 
-        btnClear.addActionListener(e -> clearForm());
+        btnClear.addActionListener(e -> {
+            clearForm();
+            loadRooms(); // Refresh rooms on clear too
+        });
     }
 
+    // Helper utilities
     private JTextField createTextField() { JTextField tf = new JTextField(); tf.setPreferredSize(new Dimension(250, 35)); tf.setFont(new Font("SansSerif", Font.PLAIN, 14)); return tf; }
     private JFormattedTextField createDateField() { try { MaskFormatter mf = new MaskFormatter("####-##-##"); mf.setPlaceholderCharacter('_'); JFormattedTextField ftf = new JFormattedTextField(mf); ftf.setPreferredSize(new Dimension(250, 35)); ftf.setFont(new Font("SansSerif", Font.PLAIN, 14)); return ftf; } catch (Exception e) { return new JFormattedTextField(); } }
     private void addLabel(JPanel p, String text, int x, int y) { JLabel l = new JLabel(text); l.setFont(new Font("SansSerif", Font.BOLD, 14)); GridBagConstraints g = new GridBagConstraints(); g.gridx = x; g.gridy = y; g.anchor = GridBagConstraints.WEST; g.insets = new Insets(12, 10, 12, 5); p.add(l, g); }
     private GridBagConstraints getGbc(int x, int y) { GridBagConstraints g = new GridBagConstraints(); g.gridx = x; g.gridy = y; g.fill = GridBagConstraints.HORIZONTAL; g.weightx = 1.0; g.insets = new Insets(12, 5, 12, 10); return g; }
-    private void loadRooms() { cmbRoom.removeAllItems(); for (String r : controller.getAvailableRooms()) cmbRoom.addItem(r); }
-    private void clearForm() { txtName.setText(""); txtFather.setText(""); txtMother.setText(""); txtPhone.setText(""); txtEmail.setText(""); txtUniID.setText(""); txtDOB.setValue(null); txtAddress.setText(""); rbMale.setSelected(true); }
+
+    // Method to fetch and update the room dropdown
+    private void loadRooms() {
+        cmbRoom.removeAllItems();
+        java.util.List<String> list = controller.getAvailableRooms();
+        for (String r : list) cmbRoom.addItem(r);
+    }
+
+    private void clearForm() {
+        txtName.setText(""); txtFather.setText(""); txtMother.setText("");
+        txtPhone.setText(""); txtEmail.setText(""); txtUniID.setText("");
+        txtDOB.setValue(null); txtAddress.setText(""); rbMale.setSelected(true);
+    }
 }

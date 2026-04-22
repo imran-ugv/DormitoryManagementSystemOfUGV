@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Final DAO Implementation synced with Controllers.
- * Handles all database operations for Admin, Rooms, Students, and Employees.
+ * Final DAO Implementation.
+ * Optimized to prevent double-booking and synced with MVC Controllers.
  */
 public class DormitoryDAO {
 
@@ -25,18 +25,23 @@ public class DormitoryDAO {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    // --- 2. DASHBOARD STATISTICS ---
+    // --- 2. DYNAMIC DASHBOARD STATISTICS ---
     public Map<String, Integer> getDashboardStats() {
         Map<String, Integer> stats = new HashMap<>();
         try (Connection conn = DatabaseConnection.getConnection()) {
+            // Room Counts
             ResultSet rs1 = conn.createStatement().executeQuery("SELECT COUNT(*) FROM rooms WHERE room_status = 'Not Booked' AND is_active = 'YES'");
             if (rs1.next()) stats.put("Available Rooms", rs1.getInt(1));
             ResultSet rs2 = conn.createStatement().executeQuery("SELECT COUNT(*) FROM rooms WHERE room_status = 'Booked'");
             if (rs2.next()) stats.put("Booked Rooms", rs2.getInt(1));
+
+            // Student Counts
             ResultSet rs3 = conn.createStatement().executeQuery("SELECT COUNT(*) FROM students WHERE status = 'Living'");
             if (rs3.next()) stats.put("Living Students", rs3.getInt(1));
             ResultSet rs4 = conn.createStatement().executeQuery("SELECT COUNT(*) FROM students WHERE status = 'Leaved'");
             if (rs4.next()) stats.put("Leaved Students", rs4.getInt(1));
+
+            // Employee Counts
             ResultSet rs5 = conn.createStatement().executeQuery("SELECT COUNT(*) FROM employees WHERE status = 'Working'");
             if (rs5.next()) stats.put("Working Employees", rs5.getInt(1));
             ResultSet rs6 = conn.createStatement().executeQuery("SELECT COUNT(*) FROM employees WHERE status = 'Leaved'");
@@ -95,9 +100,8 @@ public class DormitoryDAO {
 
     public List<Room> searchRooms(String roomNo) {
         List<Room> list = new ArrayList<>();
-        String query = "SELECT * FROM rooms WHERE room_number LIKE ?";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(query)) {
+             PreparedStatement ps = conn.prepareStatement("SELECT * FROM rooms WHERE room_number LIKE ?")) {
             ps.setString(1, "%" + roomNo + "%");
             ResultSet rs = ps.executeQuery();
             while (rs.next()) list.add(new Room(rs.getString(1), rs.getString(2), rs.getString(3)));
@@ -105,19 +109,34 @@ public class DormitoryDAO {
         return list;
     }
 
-    // --- 4. STUDENT MANAGEMENT ---
+    // --- 4. STUDENT MANAGEMENT (Logic Updated for Duplication Fix) ---
+
+    // Fetches only rooms that are both Active (YES) and NOT Booked.
     public List<String> getAvailableRooms() {
         List<String> rooms = new ArrayList<>();
+        String query = "SELECT room_number FROM rooms WHERE is_active = 'YES' AND room_status = 'Not Booked'";
         try (Connection conn = DatabaseConnection.getConnection();
-             ResultSet rs = conn.createStatement().executeQuery("SELECT room_number FROM rooms WHERE is_active = 'YES' AND room_status = 'Not Booked'")) {
+             ResultSet rs = conn.createStatement().executeQuery(query)) {
             while (rs.next()) rooms.add(rs.getString(1));
         } catch (SQLException e) { e.printStackTrace(); }
         return rooms;
     }
 
+    // Final validation before saving to prevent double-booking.
+    public boolean isRoomStillAvailable(String roomNo) {
+        String query = "SELECT room_status FROM rooms WHERE room_number = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, roomNo);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getString("room_status").equals("Not Booked");
+        } catch (SQLException e) { e.printStackTrace(); }
+        return false;
+    }
+
     public boolean saveStudent(Student s) {
         try (Connection conn = DatabaseConnection.getConnection()) {
-            conn.setAutoCommit(false);
+            conn.setAutoCommit(false); // Start Transaction
             try {
                 String q = "INSERT INTO students (name, father_name, mother_name, gender, dob, phone, email, university_id, degree_program, room_number, address, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
                 PreparedStatement ps = conn.prepareStatement(q);
@@ -126,10 +145,11 @@ public class DormitoryDAO {
                 ps.setString(7, s.email); ps.setString(8, s.uniID); ps.setString(9, s.degree);
                 ps.setString(10, s.roomNo); ps.setString(11, s.address); ps.setString(12, s.status);
                 ps.executeUpdate();
+                // Update Room status to Booked
                 conn.createStatement().executeUpdate("UPDATE rooms SET room_status = 'Booked' WHERE room_number = '" + s.roomNo + "'");
                 conn.commit(); return true;
-            } catch (SQLException ex) { conn.rollback(); return false; }
-        } catch (SQLException e) { return false; }
+            } catch (SQLException ex) { conn.rollback(); ex.printStackTrace(); return false; }
+        } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
     public Student getStudentByID(String uniID) {
@@ -171,7 +191,6 @@ public class DormitoryDAO {
         } catch (SQLException e) { return false; }
     }
 
-    // --- Controller compatibility methods for Student lists ---
     public List<Student> getAllLivingStudents() { return getStudentListByStatus("Living", null); }
     public List<Student> searchLivingStudents(String id) { return getStudentListByStatus("Living", id); }
     public List<Student> getAllLeavedStudents() { return getStudentListByStatus("Leaved", null); }
@@ -252,7 +271,6 @@ public class DormitoryDAO {
         } catch (SQLException ex) { return false; }
     }
 
-    // --- Controller compatibility methods for Employee lists ---
     public List<Employee> getAllWorkingEmployees() { return getEmployeeListByStatus("Working", null); }
     public List<Employee> searchWorkingEmployees(String id) { return getEmployeeListByStatus("Working", id); }
     public List<Employee> getAllLeavedEmployees() { return getEmployeeListByStatus("Leaved", null); }

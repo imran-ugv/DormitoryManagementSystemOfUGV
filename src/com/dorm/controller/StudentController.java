@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * Controller for managing Student records.
- * Separates data validation and business rules from the UI.
+ * Refined Controller for Student management.
+ * Strictly prevents double-booking rooms during Registration and Updates.
  */
 public class StudentController {
     private DormitoryDAO dao = new DormitoryDAO();
@@ -34,7 +34,7 @@ public class StudentController {
 
     // Logic to validate and update student info including room/status changes
     public boolean handleUpdate(Student s, String oldRoom, String oldStatus, String dob, Component parent) {
-        // 1. Date Validation
+        // 1. Basic Format Validations
         if (dob.contains("_")) {
             JOptionPane.showMessageDialog(parent, "Please enter complete Date of Birth!", "Validation Error", JOptionPane.WARNING_MESSAGE);
             return false;
@@ -42,14 +42,21 @@ public class StudentController {
         try {
             LocalDate.parse(dob);
         } catch (DateTimeParseException ex) {
-            JOptionPane.showMessageDialog(parent, "Invalid Date Format! Use YYYY-MM-DD", "Date Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(parent, "Invalid Date Format!", "Date Error", JOptionPane.ERROR_MESSAGE);
             return false;
         }
 
-        // 2. Email Validation
         if (!Pattern.matches("^[A-Za-z0-9+_.-]+@(.+)$", s.email)) {
             JOptionPane.showMessageDialog(parent, "Invalid Email Format!", "Email Error", JOptionPane.ERROR_MESSAGE);
             return false;
+        }
+
+        // 2. CRITICAL: If Room is being changed, check if the NEW room is available
+        if (!s.roomNo.equals(oldRoom)) {
+            if (!dao.isRoomStillAvailable(s.roomNo)) {
+                JOptionPane.showMessageDialog(parent, "The target Room " + s.roomNo + " is already booked! Please select another.", "Booking Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
         }
 
         // 3. Database Update via DAO
@@ -57,7 +64,7 @@ public class StudentController {
             JOptionPane.showMessageDialog(parent, "Student Record Updated Successfully!");
             return true;
         } else {
-            JOptionPane.showMessageDialog(parent, "Update Failed! Check Database connection.");
+            JOptionPane.showMessageDialog(parent, "Update Failed! Check Database connection.", "Error", JOptionPane.ERROR_MESSAGE);
             return false;
         }
     }
@@ -78,13 +85,13 @@ public class StudentController {
 
     // Logic to validate and save a new student record
     public boolean handleRegistration(Student s, String dob, Component parent) {
-        // 1. Basic Field Validation (Required Fields)
+        // 1. Basic Field Validation
         if (s.name.isEmpty() || s.phone.isEmpty() || s.email.isEmpty() || s.uniID.isEmpty() || s.roomNo.isEmpty()) {
             JOptionPane.showMessageDialog(parent, "Please fill all required fields (*)", "Missing Data", JOptionPane.WARNING_MESSAGE);
             return false;
         }
 
-        // 2. Date Format Validation
+        // 2. Date and Email Validation
         if (dob.contains("_")) {
             JOptionPane.showMessageDialog(parent, "Please enter complete Date of Birth!", "Validation Error", JOptionPane.WARNING_MESSAGE);
             return false;
@@ -92,13 +99,18 @@ public class StudentController {
         try {
             LocalDate.parse(dob);
         } catch (DateTimeParseException ex) {
-            JOptionPane.showMessageDialog(parent, "Invalid Date Format! Use YYYY-MM-DD", "Date Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(parent, "Invalid Date Format!", "Date Error", JOptionPane.ERROR_MESSAGE);
             return false;
         }
 
-        // 3. Email Format Validation
         if (!Pattern.matches("^[A-Za-z0-9+_.-]+@(.+)$", s.email)) {
             JOptionPane.showMessageDialog(parent, "Invalid Email Format!", "Email Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        // 3. CRITICAL: Final check before saving to prevent double-booking
+        if (!dao.isRoomStillAvailable(s.roomNo)) {
+            JOptionPane.showMessageDialog(parent, "Room " + s.roomNo + " was just booked! Please select another.", "Room Unavailable", JOptionPane.ERROR_MESSAGE);
             return false;
         }
 
@@ -112,23 +124,9 @@ public class StudentController {
         }
     }
 
-    // Logic to fetch all students who have left the dormitory
-    public List<Student> getLeavedStudents() {
-        return dao.getAllLeavedStudents();
-    }
-
-    // Logic to filter leaved students by ID
-    public List<Student> filterLeavedStudents(String query) {
-        return dao.searchLeavedStudents(query);
-    }
-
-    // Logic to fetch all students currently living in the dormitory
-    public List<Student> getLivingStudents() {
-        return dao.getAllLivingStudents();
-    }
-
-    // Logic to filter living students by their ID
-    public List<Student> filterLivingStudents(String query) {
-        return dao.searchLivingStudents(query);
-    }
+    // List fetching methods
+    public List<Student> getLeavedStudents() { return dao.getAllLeavedStudents(); }
+    public List<Student> filterLeavedStudents(String query) { return dao.searchLeavedStudents(query); }
+    public List<Student> getLivingStudents() { return dao.getAllLivingStudents(); }
+    public List<Student> filterLivingStudents(String query) { return dao.searchLivingStudents(query); }
 }

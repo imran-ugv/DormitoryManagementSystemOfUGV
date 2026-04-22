@@ -1,6 +1,6 @@
 package com.dorm.view;
 
-import com.dorm.controller.StudentController; // Import Controller
+import com.dorm.controller.StudentController;
 import com.dorm.model.Student;
 import javax.swing.*;
 import javax.swing.border.*;
@@ -8,6 +8,10 @@ import javax.swing.text.MaskFormatter;
 import java.awt.*;
 import java.awt.event.*;
 
+/**
+ * Professional Manage Student Records View.
+ * Synced with StudentController to strictly prevent room double-booking.
+ */
 public class ManageStudentView extends JPanel {
     private JTextField txtSearchID, txtName, txtFather, txtMother, txtPhone, txtEmail;
     private JFormattedTextField txtDOB;
@@ -16,21 +20,24 @@ public class ManageStudentView extends JPanel {
     private JTextArea txtAddress;
     private JButton btnSearch, btnUpdate, btnDelete, btnClear;
 
-    // Using StudentController for all logic
     private StudentController controller = new StudentController();
     private String currentRoomInDB = "", currentStatusInDB = "";
 
     public ManageStudentView() {
-        // Layout and Background Setup
+        // Main Layout Setup
         setBackground(new Color(245, 245, 245));
         setLayout(new BorderLayout());
 
         JPanel wrapper = new JPanel(new GridBagLayout());
         wrapper.setBackground(new Color(245, 245, 245));
 
+        // --- MAIN WHITE CARD CONTAINER ---
         JPanel formContainer = new JPanel(new GridBagLayout());
         formContainer.setBackground(Color.WHITE);
-        formContainer.setBorder(new CompoundBorder(new LineBorder(new Color(200, 200, 200), 1), new EmptyBorder(40, 50, 40, 50)));
+        formContainer.setBorder(new CompoundBorder(
+                new LineBorder(new Color(200, 200, 200), 1),
+                new EmptyBorder(40, 50, 40, 50)
+        ));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -45,7 +52,7 @@ public class ManageStudentView extends JPanel {
         gbc.insets = new Insets(0, 0, 35, 0);
         formContainer.add(lblHeader, gbc);
 
-        // Search Bar
+        // Search Bar Section
         gbc.gridwidth = 1; gbc.insets = new Insets(10, 10, 25, 10);
         addLabel(formContainer, "University ID to Manage:", 0, 1);
         txtSearchID = createTextField();
@@ -63,7 +70,7 @@ public class ManageStudentView extends JPanel {
         gbc.insets = new Insets(10, 0, 30, 0);
         formContainer.add(new JSeparator(), gbc);
 
-        // Form Fields (Left Column)
+        // Input Fields (Two Columns)
         int row = 3; gbc.gridwidth = 1; gbc.insets = new Insets(12, 10, 12, 10);
         addLabel(formContainer, "Full Name:", 0, row);
         txtName = createTextField(); formContainer.add(txtName, getGbc(1, row++));
@@ -83,7 +90,6 @@ public class ManageStudentView extends JPanel {
         cmbRoom = new JComboBox<>(); cmbRoom.setPreferredSize(new Dimension(250, 35));
         formContainer.add(cmbRoom, getGbc(1, row++));
 
-        // Right Column
         int rightRow = 3;
         addLabel(formContainer, "Date of Birth:", 2, rightRow);
         txtDOB = createDateField(); formContainer.add(txtDOB, getGbc(3, rightRow++));
@@ -117,7 +123,7 @@ public class ManageStudentView extends JPanel {
         mainScroll.getVerticalScrollBar().setUnitIncrement(16);
         add(mainScroll, BorderLayout.CENTER);
 
-        // --- BUTTON ACTIONS: Delegating to Controller ---
+        // --- LOGIC ---
 
         btnSearch.addActionListener(e -> {
             String id = txtSearchID.getText().trim();
@@ -129,22 +135,28 @@ public class ManageStudentView extends JPanel {
                 cmbStatus.setSelectedItem(s.status);
                 currentRoomInDB = s.roomNo; currentStatusInDB = s.status;
 
-                // Refresh room dropdown
-                cmbRoom.removeAllItems(); cmbRoom.addItem(s.roomNo);
-                for (String r : controller.getAvailableRooms()) cmbRoom.addItem(r);
+                // CRITICAL FIX: Only add the current room of the student + rooms that are actually FREE now
+                cmbRoom.removeAllItems();
+                cmbRoom.addItem(s.roomNo); // Keep the current room
+                java.util.List<String> available = controller.getAvailableRooms();
+                for (String r : available) {
+                    if (!r.equals(s.roomNo)) cmbRoom.addItem(r); // Don't add current room twice
+                }
+
                 if (s.gender.equalsIgnoreCase("Male")) rbMale.setSelected(true); else rbFemale.setSelected(true);
             } else clearForm();
         });
 
         btnUpdate.addActionListener(e -> {
-            if (txtSearchID.getText().trim().isEmpty()) return;
+            if (txtSearchID.getText().trim().isEmpty() || cmbRoom.getSelectedItem() == null) return;
+
             Student s = new Student(txtName.getText(), txtFather.getText(), txtMother.getText(), rbMale.isSelected()?"Male":"Female",
                     txtDOB.getText().trim(), txtPhone.getText(), txtEmail.getText(), txtSearchID.getText().trim(),
                     cmbDegree.getSelectedItem().toString(), cmbRoom.getSelectedItem().toString(),
                     txtAddress.getText(), cmbStatus.getSelectedItem().toString());
 
             if (controller.handleUpdate(s, currentRoomInDB, currentStatusInDB, txtDOB.getText().trim(), this)) {
-                clearForm();
+                clearForm(); // Reset UI after success to force a fresh room reload on next search
             }
         });
 
@@ -161,5 +173,12 @@ public class ManageStudentView extends JPanel {
     private JFormattedTextField createDateField() { try { MaskFormatter mf = new MaskFormatter("####-##-##"); mf.setPlaceholderCharacter('_'); JFormattedTextField ftf = new JFormattedTextField(mf); ftf.setPreferredSize(new Dimension(250, 35)); ftf.setFont(new Font("SansSerif", Font.PLAIN, 14)); return ftf; } catch (Exception e) { return new JFormattedTextField(); } }
     private void addLabel(JPanel p, String text, int x, int y) { JLabel l = new JLabel(text); l.setFont(new Font("SansSerif", Font.BOLD, 14)); GridBagConstraints g = new GridBagConstraints(); g.gridx = x; g.gridy = y; g.anchor = GridBagConstraints.WEST; g.insets = new Insets(12, 10, 12, 5); p.add(l, g); }
     private GridBagConstraints getGbc(int x, int y) { GridBagConstraints g = new GridBagConstraints(); g.gridx = x; g.gridy = y; g.fill = GridBagConstraints.HORIZONTAL; g.weightx = 1.0; g.insets = new Insets(12, 5, 12, 10); return g; }
-    private void clearForm() { txtSearchID.setText(""); txtName.setText(""); txtFather.setText(""); txtMother.setText(""); txtPhone.setText(""); txtEmail.setText(""); txtDOB.setText(""); txtAddress.setText(""); if (cmbRoom != null) cmbRoom.removeAllItems(); rbMale.setSelected(true); }
+
+    private void clearForm() {
+        txtSearchID.setText(""); txtName.setText(""); txtFather.setText(""); txtMother.setText("");
+        txtPhone.setText(""); txtEmail.setText(""); txtAddress.setText("");
+        txtDOB.setValue(null);
+        if (cmbRoom != null) cmbRoom.removeAllItems();
+        rbMale.setSelected(true);
+    }
 }

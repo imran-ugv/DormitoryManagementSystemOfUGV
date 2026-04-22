@@ -4,11 +4,9 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 
 public class DatabaseConnection {
-    // UPDATED: Database URL with the new database name 'ugv_dorm_db'
     private static final String URL = "jdbc:mysql://localhost:3306/ugv_dorm_db";
-    private static final String USER = "root"; // Your MySQL username
-    private static final String PASS = "imran@ugv963"; // IMPORTANT: Change this to YOUR MySQL password
-
+    private static final String USER = "root";
+    private static final String PASS = "imran@ugv963";
     public static Connection getConnection() {
         try {
             // Load Driver

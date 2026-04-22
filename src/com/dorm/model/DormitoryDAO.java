@@ -7,10 +7,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Data Access Object (DAO) for Dormitory Management.
- * Handles all database interactions for Admin, Rooms, and Students.
- */
 public class DormitoryDAO {
 
     // --- 1. ADMIN LOGIN LOGIC ---

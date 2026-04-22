@@ -1,6 +1,6 @@
 package com.dorm.view;
 
-import com.dorm.model.DormitoryDAO;
+import com.dorm.controller.StudentController; // Import Controller
 import com.dorm.model.Student;
 import javax.swing.*;
 import javax.swing.border.*;
@@ -12,20 +12,22 @@ import java.util.List;
 
 /**
  * View class to display records of students who have left the dormitory.
- * Includes digit-only validation for the ID search field.
+ * Strictly follows MVC by delegating data fetching to StudentController.
  */
 public class LeavedStudentsView extends JPanel {
     private JTextField txtSearch;
     private JTable studentTable;
     private DefaultTableModel model;
-    private DormitoryDAO dao = new DormitoryDAO();
+
+    // Using StudentController instead of direct DAO access
+    private StudentController controller = new StudentController();
 
     public LeavedStudentsView() {
         // Main Background Setup
         setBackground(new Color(245, 245, 245));
         setLayout(new BorderLayout());
 
-        // Wrapper Panel for centering the card
+        // Centering Wrapper
         JPanel wrapper = new JPanel(new GridBagLayout());
         wrapper.setBackground(new Color(245, 245, 245));
 
@@ -44,7 +46,7 @@ public class LeavedStudentsView extends JPanel {
 
         JLabel lblTitle = new JLabel("LEAVED STUDENTS RECORDS");
         lblTitle.setFont(new Font("SansSerif", Font.BOLD, 26));
-        lblTitle.setForeground(new Color(255, 102, 102)); // Subtle Red for Leaved records
+        lblTitle.setForeground(new Color(255, 102, 102)); // Subtle Red for Leaved status
         lblTitle.setBorder(new EmptyBorder(0, 0, 20, 0));
         topPanel.add(lblTitle, BorderLayout.NORTH);
 
@@ -57,12 +59,12 @@ public class LeavedStudentsView extends JPanel {
         txtSearch.setPreferredSize(new Dimension(200, 35));
         txtSearch.setFont(new Font("SansSerif", Font.PLAIN, 14));
 
-        // NEW: Validation to allow only digits in the search field
+        // Validation: Allow only digits in the search field
         txtSearch.addKeyListener(new KeyAdapter() {
             @Override
             public void keyTyped(KeyEvent e) {
                 if (!Character.isDigit(e.getKeyChar())) {
-                    e.consume(); // Ignore non-digit characters
+                    e.consume(); // Discard non-digit inputs
                 }
             }
         });
@@ -78,7 +80,7 @@ public class LeavedStudentsView extends JPanel {
         model = new DefaultTableModel(columns, 0);
         studentTable = new JTable(model) {
             @Override
-            public boolean isCellEditable(int row, int column) { return false; } // Read-only table
+            public boolean isCellEditable(int row, int column) { return false; } // Records are read-only
         };
         studentTable.setRowHeight(30);
         studentTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
@@ -95,35 +97,34 @@ public class LeavedStudentsView extends JPanel {
         mainScroll.getVerticalScrollBar().setUnitIncrement(16);
         add(mainScroll, BorderLayout.CENTER);
 
-        // --- LOGIC ---
+        // --- LOGIC: Delegating to Controller ---
 
-        // Load all leaved students on startup
-        refreshTable(dao.getAllLeavedStudents());
+        // Initial load of all leaved students via Controller
+        refreshTable(controller.getLeavedStudents());
 
-        // Dynamic Search Logic: Filters as Admin types the ID
-        txtSearch.addKeyListener(new java.awt.event.KeyAdapter() {
+        // Dynamic search logic: filters the list as Admin types the ID
+        txtSearch.addKeyListener(new KeyAdapter() {
             @Override
-            public void keyReleased(java.awt.event.KeyEvent evt) {
+            public void keyReleased(KeyEvent evt) {
                 String query = txtSearch.getText().trim();
-                if (query.isEmpty()) {
-                    refreshTable(dao.getAllLeavedStudents());
-                } else {
-                    refreshTable(dao.searchLeavedStudents(query));
-                }
+                // Fetch filtered leaved data from Controller
+                refreshTable(controller.filterLeavedStudents(query));
             }
         });
     }
 
     /**
-     * Helper to refresh table data with a list of students.
-     * @param list List of leaved students.
+     * Helper to refresh the table with a list of students.
+     * @param list List of student objects from Controller.
      */
     private void refreshTable(List<Student> list) {
         model.setRowCount(0);
-        for (Student s : list) {
-            model.addRow(new Object[]{
-                    s.name, s.fatherName, s.phone, s.email, s.uniID, s.roomNo, s.degree
-            });
+        if (list != null) {
+            for (Student s : list) {
+                model.addRow(new Object[]{
+                        s.name, s.fatherName, s.phone, s.email, s.uniID, s.roomNo, s.degree
+                });
+            }
         }
     }
 }

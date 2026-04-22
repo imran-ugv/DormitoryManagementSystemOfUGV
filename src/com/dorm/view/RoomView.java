@@ -1,6 +1,6 @@
 package com.dorm.view;
 
-import com.dorm.model.DormitoryDAO;
+import com.dorm.controller.RoomController; // Import Controller
 import com.dorm.model.Room;
 import javax.swing.*;
 import javax.swing.border.CompoundBorder;
@@ -10,6 +10,10 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
 
+/**
+ * View class for adding new rooms.
+ * Strictly follows MVC by delegating logic to RoomController.
+ */
 public class RoomView extends JPanel {
 
     private JTextField txtRoomNumber, txtSearch;
@@ -17,12 +21,14 @@ public class RoomView extends JPanel {
     private JButton btnSave;
     private JTable roomTable;
     private DefaultTableModel tableModel;
-    private DormitoryDAO dao = new DormitoryDAO();
+
+    // Instantiate Controller
+    private RoomController controller = new RoomController();
 
     public RoomView() {
-        // Main Background (Light Grey)
+        // Setup Main Background
         setBackground(new Color(245, 245, 245));
-        setLayout(new GridBagLayout()); // Centering the whole UI
+        setLayout(new GridBagLayout());
 
         // --- MAIN WHITE CARD ---
         JPanel mainCard = new JPanel(new GridBagLayout());
@@ -45,10 +51,9 @@ public class RoomView extends JPanel {
         mainCard.add(lblHeader, gbc);
 
         // 2. Input Fields Row
-        gbc.gridwidth = 1; // Reset width
+        gbc.gridwidth = 1;
         gbc.gridy = 1;
 
-        // Room Number
         gbc.gridx = 0;
         JLabel lblNo = new JLabel("<html>Room Number <font color='red'>*</font></html>");
         lblNo.setFont(new Font("SansSerif", Font.BOLD, 14));
@@ -60,7 +65,6 @@ public class RoomView extends JPanel {
         txtRoomNumber.setFont(new Font("SansSerif", Font.PLAIN, 14));
         mainCard.add(txtRoomNumber, gbc);
 
-        // Active Status
         gbc.gridx = 2;
         JLabel lblActive = new JLabel("<html>Active <font color='red'>*</font></html>");
         lblActive.setFont(new Font("SansSerif", Font.BOLD, 14));
@@ -87,7 +91,7 @@ public class RoomView extends JPanel {
         lblTableTitle.setBorder(new EmptyBorder(20, 0, 10, 0));
         mainCard.add(lblTableTitle, gbc);
 
-        // 5. Search Bar (Right Aligned)
+        // 5. Search Bar
         gbc.gridy = 3; gbc.gridwidth = 5;
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         searchPanel.setOpaque(false);
@@ -102,39 +106,39 @@ public class RoomView extends JPanel {
         gbc.gridy = 4; gbc.gridwidth = 5;
         String[] columns = {"Room Number", "Active", "Room Status"};
         tableModel = new DefaultTableModel(columns, 0);
-        roomTable = new JTable(tableModel);
+        roomTable = new JTable(tableModel) {
+            @Override
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
         roomTable.setRowHeight(25);
         JScrollPane scrollPane = new JScrollPane(roomTable);
         scrollPane.setPreferredSize(new Dimension(700, 250));
         mainCard.add(scrollPane, gbc);
 
-        // Add main card to the center
         add(mainCard);
 
-        // --- BUTTON ACTIONS ---
+        // --- BUTTON ACTIONS: Delegating to Controller ---
+
         btnSave.addActionListener(e -> {
             String roomNo = txtRoomNumber.getText().trim();
-            String active = (String) cmbActive.getSelectedItem();
+            String isActive = (String) cmbActive.getSelectedItem();
 
-            if (roomNo.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Please enter room number!");
-            } else if (dao.isRoomExists(roomNo)) {
-                JOptionPane.showMessageDialog(this, "Room already exists!");
-            } else {
-                dao.saveRoom(new Room(roomNo, active, "Not Booked"));
-                JOptionPane.showMessageDialog(this, "Room Saved!");
-                txtRoomNumber.setText("");
-                refreshTable(dao.getAllRooms());
+            // Delegate logic to controller
+            if (controller.handleSaveRoom(roomNo, isActive, this)) {
+                txtRoomNumber.setText(""); // Reset UI
+                refreshTable(controller.getAllRooms()); // Refresh list from controller
             }
         });
 
         txtSearch.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyReleased(java.awt.event.KeyEvent evt) {
-                refreshTable(dao.searchRooms(txtSearch.getText().trim()));
+                // Delegate search to controller
+                refreshTable(controller.searchRooms(txtSearch.getText().trim()));
             }
         });
 
-        refreshTable(dao.getAllRooms());
+        // Initial Load using controller
+        refreshTable(controller.getAllRooms());
     }
 
     private void refreshTable(List<Room> list) {

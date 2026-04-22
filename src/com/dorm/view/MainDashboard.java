@@ -1,29 +1,17 @@
 package com.dorm.view;
 
-import com.dorm.model.DormitoryDAO;
-import org.jfree.chart.ChartFactory;
+import com.dorm.controller.DashboardController; // Import Controller
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
-import org.jfree.chart.plot.CategoryPlot;
-import org.jfree.chart.plot.PlotOrientation;
-import org.jfree.chart.renderer.category.LineAndShapeRenderer;
-import org.jfree.data.category.DefaultCategoryDataset;
-import org.jfree.data.general.DefaultPieDataset;
-
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.util.Map;
 
-/**
- * Final Refined Main Dashboard.
- * Fixed Occupancy Trend logic to ensure lines are visible.
- * Synchronized all charts with real-time database counts.
- */
 public class MainDashboard extends JFrame {
 
     private JPanel sideBar, header, mainContent;
-    private DormitoryDAO dao = new DormitoryDAO();
+    private DashboardController controller = new DashboardController(); // Using Controller
 
     public MainDashboard() {
         setTitle("University Dormitory Management System");
@@ -58,9 +46,7 @@ public class MainDashboard extends JFrame {
             ImageIcon icon = new ImageIcon(getClass().getResource("/com/dorm/resources/UGV-Logo-02.png"));
             Image img = icon.getImage().getScaledInstance(30, 40, Image.SCALE_SMOOTH);
             leftHeader.add(new JLabel(new ImageIcon(img)));
-        } catch (Exception e) {
-            leftHeader.add(new JLabel("🏛"));
-        }
+        } catch (Exception e) { leftHeader.add(new JLabel("🏛")); }
 
         JLabel lblTitle = new JLabel("University Dormitory Management");
         lblTitle.setFont(new Font("Serif", Font.BOLD, 22));
@@ -73,11 +59,10 @@ public class MainDashboard extends JFrame {
         lblAdmin.setForeground(Color.WHITE);
         lblAdmin.setFont(new Font("SansSerif", Font.BOLD, 14));
         lblAdmin.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
         lblAdmin.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
-                if (JOptionPane.showConfirmDialog(null, "Logout?", "Confirm", 0) == 0) {
-                    dispose(); new LoginView();
-                }
+                controller.handleLogout(MainDashboard.this); // Delegate to controller
             }
         });
         rightHeader.add(lblAdmin);
@@ -116,18 +101,10 @@ public class MainDashboard extends JFrame {
 
             btn.addActionListener(e -> {
                 if (item[0].equals("Dashboard")) showDashboardHome();
-                else if (item[0].equals("Add Room")) showPanel(new RoomView());
-                else if (item[0].equals("Manage Rooms")) showPanel(new ManageRoomsView());
-                else if (item[0].equals("New Student")) showPanel(new NewStudentView());
-                else if (item[0].equals("Manage Students")) showPanel(new ManageStudentView());
-                else if (item[0].equals("Dormitory Fees")) showPanel(new DormitoryFeesView());
-                else if (item[0].equals("Living Students")) showPanel(new LivingStudentsView());
-                else if (item[0].equals("Leaved Students")) showPanel(new LeavedStudentsView());
-                else if (item[0].equals("New Employee")) showPanel(new NewEmployeeView());
-                else if (item[0].equals("Manage Employees")) showPanel(new ManageEmployeeView());
-                else if (item[0].equals("Employees Salary")) showPanel(new EmployeeSalaryView());
-                else if (item[0].equals("Working Employees")) showPanel(new WorkingEmployeesView());
-                else if (item[0].equals("Leaved Employees")) showPanel(new LeavedEmployeesView());
+                else {
+                    JPanel panel = controller.getTargetPanel(item[0]); // Get panel from controller
+                    if (panel != null) showPanel(panel);
+                }
             });
             menuContainer.add(btn);
         }
@@ -137,7 +114,7 @@ public class MainDashboard extends JFrame {
     }
 
     private void showDashboardHome() {
-        Map<String, Integer> statsData = dao.getDashboardStats();
+        Map<String, Integer> statsData = controller.getStats(); // Fetch from controller
         JPanel homePanel = new JPanel(new GridBagLayout());
         homePanel.setOpaque(false);
         GridBagConstraints gbc = new GridBagConstraints();
@@ -164,9 +141,9 @@ public class MainDashboard extends JFrame {
         chartSection.setOpaque(false);
         chartSection.setBorder(new EmptyBorder(10, 20, 20, 20));
 
-        chartSection.add(createChartWrapper("Records Analysis", createBarChart("Students", statsData), "Bar", true));
-        chartSection.add(createChartWrapper("Occupancy Trend", createLineChart(statsData), "Line", false));
-        chartSection.add(createChartWrapper("Room Distribution", createPieChart(statsData), "Pie", false));
+        chartSection.add(createChartWrapper("Records Analysis", controller.createBarChart("Students", statsData), "Bar", true));
+        chartSection.add(createChartWrapper("Occupancy Trend", controller.createLineChart(statsData), "Line", false));
+        chartSection.add(createChartWrapper("Room Distribution", controller.createPieChart(statsData), "Pie", false));
 
         homePanel.add(chartSection, gbc);
         mainContent.removeAll();
@@ -209,51 +186,11 @@ public class MainDashboard extends JFrame {
             JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
             btnPanel.setOpaque(false);
             JButton btnS = new JButton("Student"); JButton btnE = new JButton("Employee");
-            btnS.addActionListener(e -> chartPanel.setChart(createBarChart("Students", dao.getDashboardStats())));
-            btnE.addActionListener(e -> chartPanel.setChart(createBarChart("Employees", dao.getDashboardStats())));
+            btnS.addActionListener(e -> chartPanel.setChart(controller.createBarChart("Students", controller.getStats())));
+            btnE.addActionListener(e -> chartPanel.setChart(controller.createBarChart("Employees", controller.getStats())));
             btnPanel.add(btnS); btnPanel.add(btnE);
             pnl.add(btnPanel, BorderLayout.SOUTH);
         }
         return pnl;
-    }
-
-    private JFreeChart createBarChart(String category, Map<String, Integer> data) {
-        DefaultCategoryDataset ds = new DefaultCategoryDataset();
-        if(category.equals("Students")) {
-            ds.addValue(data.getOrDefault("Living Students", 0), "Count", "Living");
-            ds.addValue(data.getOrDefault("Leaved Students", 0), "Count", "Leaved");
-        } else {
-            ds.addValue(data.getOrDefault("Working Employees", 0), "Count", "Working");
-            ds.addValue(data.getOrDefault("Not Working Employees", 0), "Count", "Leaved");
-        }
-        return ChartFactory.createBarChart(null, "Status", "People", ds, PlotOrientation.VERTICAL, false, true, false);
-    }
-
-    private JFreeChart createLineChart(Map<String, Integer> data) {
-        DefaultCategoryDataset ds = new DefaultCategoryDataset();
-        int booked = data.getOrDefault("Booked Rooms", 0);
-        int available = data.getOrDefault("Available Rooms", 0);
-        int total = booked + available;
-
-        // Using two points on X-axis (Total vs Occupied) to ensure line is visible
-        ds.addValue(total, "Rooms", "Total Capacity");
-        ds.addValue(booked, "Rooms", "Current Booked");
-
-        JFreeChart chart = ChartFactory.createLineChart(null, "Dormitory", "Rooms Count", ds, PlotOrientation.VERTICAL, false, true, false);
-
-        // Customizing the renderer to show shapes/points on the line
-        CategoryPlot plot = (CategoryPlot) chart.getPlot();
-        LineAndShapeRenderer renderer = new LineAndShapeRenderer();
-        renderer.setSeriesShapesVisible(0, true); // Show dots on points
-        plot.setRenderer(renderer);
-
-        return chart;
-    }
-
-    private JFreeChart createPieChart(Map<String, Integer> data) {
-        DefaultPieDataset ds = new DefaultPieDataset();
-        ds.setValue("Available Rooms", data.getOrDefault("Available Rooms", 0));
-        ds.setValue("Booked Rooms", data.getOrDefault("Booked Rooms", 0));
-        return ChartFactory.createPieChart(null, ds, true, true, false);
     }
 }

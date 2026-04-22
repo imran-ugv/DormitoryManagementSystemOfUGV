@@ -1,6 +1,6 @@
 package com.dorm.view;
 
-import com.dorm.model.DormitoryDAO;
+import com.dorm.controller.StudentController; // Import Controller
 import com.dorm.model.Student;
 import javax.swing.*;
 import javax.swing.border.*;
@@ -12,16 +12,18 @@ import java.util.List;
 
 /**
  * View class to display records of students currently living in the dormitory.
- * Includes digit-only validation for the search field.
+ * Strictly follows MVC by delegating logic to StudentController.
  */
 public class LivingStudentsView extends JPanel {
     private JTextField txtSearch;
     private JTable studentTable;
     private DefaultTableModel model;
-    private DormitoryDAO dao = new DormitoryDAO();
+
+    // Using StudentController instead of direct DAO
+    private StudentController controller = new StudentController();
 
     public LivingStudentsView() {
-        // Main Setup
+        // Main Background Setup
         setBackground(new Color(245, 245, 245));
         setLayout(new BorderLayout());
 
@@ -57,12 +59,12 @@ public class LivingStudentsView extends JPanel {
         txtSearch.setPreferredSize(new Dimension(200, 35));
         txtSearch.setFont(new Font("SansSerif", Font.PLAIN, 14));
 
-        // NEW: Validation to allow only digits in the search field
+        // Validation: Only allow digits in search field
         txtSearch.addKeyListener(new KeyAdapter() {
             @Override
             public void keyTyped(KeyEvent e) {
                 if (!Character.isDigit(e.getKeyChar())) {
-                    e.consume(); // Ignore non-digit characters
+                    e.consume(); // Discard non-digit characters
                 }
             }
         });
@@ -89,41 +91,43 @@ public class LivingStudentsView extends JPanel {
 
         wrapper.add(mainCard);
 
-        // --- FINAL SCROLLPANE (For Responsive Behavior) ---
+        // --- FINAL SCROLLPANE INTEGRATION (Responsive) ---
         JScrollPane mainScroll = new JScrollPane(wrapper);
         mainScroll.setBorder(null);
         mainScroll.getVerticalScrollBar().setUnitIncrement(16);
         add(mainScroll, BorderLayout.CENTER);
 
-        // --- LOGIC ---
+        // --- LOGIC: Delegating to Controller ---
 
-        // Initial load of all living students
-        refreshTable(dao.getAllLivingStudents());
+        // Initial load using Controller
+        refreshTable(controller.getLivingStudents());
 
-        // Dynamic search logic: triggers as you type
+        // Dynamic search logic
         txtSearch.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyReleased(java.awt.event.KeyEvent evt) {
                 String query = txtSearch.getText().trim();
                 if (query.isEmpty()) {
-                    refreshTable(dao.getAllLivingStudents());
+                    refreshTable(controller.getLivingStudents());
                 } else {
-                    refreshTable(dao.searchLivingStudents(query));
+                    refreshTable(controller.filterLivingStudents(query));
                 }
             }
         });
     }
 
     /**
-     * Helper to refresh table data.
-     * @param list List of Student objects to display.
+     * Helper method to update table data.
+     * @param list List of students fetched from Controller.
      */
     private void refreshTable(List<Student> list) {
         model.setRowCount(0);
-        for (Student s : list) {
-            model.addRow(new Object[]{
-                    s.name, s.fatherName, s.phone, s.email, s.uniID, s.roomNo, s.degree
-            });
+        if (list != null) {
+            for (Student s : list) {
+                model.addRow(new Object[]{
+                        s.name, s.fatherName, s.phone, s.email, s.uniID, s.roomNo, s.degree
+                });
+            }
         }
     }
 }

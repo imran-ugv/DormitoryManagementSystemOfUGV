@@ -1,6 +1,6 @@
 package com.dorm.view;
 
-import com.dorm.model.DormitoryDAO;
+import com.dorm.controller.EmployeeController; // Import Controller
 import com.dorm.model.Employee;
 import javax.swing.*;
 import javax.swing.border.*;
@@ -12,13 +12,15 @@ import java.util.List;
 
 /**
  * View class to display records of employees who have left the dormitory.
- * Features a dynamic search with numeric validation.
+ * Strictly follows MVC by delegating data fetching to EmployeeController.
  */
 public class LeavedEmployeesView extends JPanel {
     private JTextField txtSearch;
     private JTable employeeTable;
     private DefaultTableModel model;
-    private DormitoryDAO dao = new DormitoryDAO();
+
+    // Using EmployeeController instead of direct DAO access
+    private EmployeeController controller = new EmployeeController();
 
     public LeavedEmployeesView() {
         // Main Background Setup
@@ -57,7 +59,7 @@ public class LeavedEmployeesView extends JPanel {
         txtSearch.setPreferredSize(new Dimension(200, 35));
         txtSearch.setFont(new Font("SansSerif", Font.PLAIN, 14));
 
-        // NEW: Validation to allow only digits in the search field
+        // Validation: Allow only digits in the search field
         txtSearch.addKeyListener(new KeyAdapter() {
             @Override
             public void keyTyped(KeyEvent e) {
@@ -78,7 +80,7 @@ public class LeavedEmployeesView extends JPanel {
         model = new DefaultTableModel(columns, 0);
         employeeTable = new JTable(model) {
             @Override
-            public boolean isCellEditable(int row, int column) { return false; } // Read-only
+            public boolean isCellEditable(int row, int column) { return false; } // Records are read-only
         };
         employeeTable.setRowHeight(30);
         employeeTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
@@ -95,36 +97,34 @@ public class LeavedEmployeesView extends JPanel {
         mainScroll.getVerticalScrollBar().setUnitIncrement(16);
         add(mainScroll, BorderLayout.CENTER);
 
-        // --- LOGIC ---
+        // --- LOGIC: Delegating to Controller ---
 
-        // Initial load of all leaved employees
-        refreshTable(dao.getAllLeavedEmployees());
+        // Initial load of leaved employees via Controller
+        refreshTable(controller.getLeavedEmployees());
 
-        // Dynamic search logic: triggers as you type the ID
+        // Dynamic search logic: triggers as Admin types the ID
         txtSearch.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyReleased(java.awt.event.KeyEvent evt) {
                 String query = txtSearch.getText().trim();
-                if (query.isEmpty()) {
-                    refreshTable(dao.getAllLeavedEmployees());
-                } else {
-                    // Logic to search only within leaved employees
-                    refreshTable(dao.searchLeavedEmployees(query));
-                }
+                // Fetch filtered leaved data from Controller
+                refreshTable(controller.filterLeavedEmployees(query));
             }
         });
     }
 
     /**
-     * Helper to refresh the table with leaved employee data.
-     * @param list List of leaved employee objects.
+     * Helper to refresh the table with a list of employees.
+     * @param list List of employee objects from Controller.
      */
     private void refreshTable(List<Employee> list) {
         model.setRowCount(0);
-        for (Employee e : list) {
-            model.addRow(new Object[]{
-                    e.employeeID, e.name, e.designation, e.phone, e.email, e.gender, e.dob
-            });
+        if (list != null) {
+            for (Employee e : list) {
+                model.addRow(new Object[]{
+                        e.employeeID, e.name, e.designation, e.phone, e.email, e.gender, e.dob
+                });
+            }
         }
     }
 }

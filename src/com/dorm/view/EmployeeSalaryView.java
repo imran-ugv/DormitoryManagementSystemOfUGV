@@ -1,6 +1,6 @@
 package com.dorm.view;
 
-import com.dorm.model.DormitoryDAO;
+import com.dorm.controller.SalaryController; // Import Controller
 import com.dorm.model.Employee;
 import javax.swing.*;
 import javax.swing.border.*;
@@ -10,175 +10,98 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.List;
 
-/**
- * Modern Employee Salary Management View.
- * Featuring digit-only validation for ID and Amount, balanced spacing, and responsive layout.
- */
 public class EmployeeSalaryView extends JPanel {
     private JTextField txtSearch, txtName, txtDesignation, txtAmount;
     private JComboBox<String> cmbMonth, cmbYear;
     private JButton btnSearch, btnPay, btnClear;
     private JTable salaryTable;
     private DefaultTableModel model;
-    private DormitoryDAO dao = new DormitoryDAO();
+
+    // Using Controller instead of direct DAO
+    private SalaryController controller = new SalaryController();
 
     public EmployeeSalaryView() {
-        // Main Background Setup
         setBackground(new Color(245, 245, 245));
         setLayout(new BorderLayout());
 
-        // Centering Wrapper
         JPanel wrapper = new JPanel(new GridBagLayout());
         wrapper.setBackground(new Color(245, 245, 245));
 
-        // --- MAIN WHITE CARD ---
         JPanel formContainer = new JPanel(new GridBagLayout());
         formContainer.setBackground(Color.WHITE);
-        formContainer.setBorder(new CompoundBorder(
-                new LineBorder(new Color(200, 200, 200), 1),
-                new EmptyBorder(40, 50, 40, 50)
-        ));
+        formContainer.setBorder(new CompoundBorder(new LineBorder(new Color(200, 200, 200), 1), new EmptyBorder(40, 50, 40, 50)));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(12, 15, 12, 15);
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.insets = new Insets(12, 15, 12, 15);
 
-        // --- 1. HEADER SECTION ---
+        // Header
         JLabel lblHeader = new JLabel("EMPLOYEE SALARY MANAGEMENT");
-        lblHeader.setFont(new Font("SansSerif", Font.BOLD, 26));
-        lblHeader.setForeground(new Color(153, 153, 255));
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 4;
-        gbc.anchor = GridBagConstraints.CENTER;
-        gbc.insets = new Insets(0, 0, 30, 0);
-        formContainer.add(lblHeader, gbc);
+        lblHeader.setFont(new Font("SansSerif", Font.BOLD, 26)); lblHeader.setForeground(new Color(153, 153, 255));
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 4; gbc.anchor = GridBagConstraints.CENTER;
+        gbc.insets = new Insets(0, 0, 30, 0); formContainer.add(lblHeader, gbc);
 
-        // --- 2. SEARCH BAR SECTION ---
-        gbc.gridwidth = 1;
-        gbc.insets = new Insets(10, 10, 25, 10);
+        // Search Bar
+        gbc.gridwidth = 1; gbc.insets = new Insets(10, 10, 25, 10);
         addLabel(formContainer, "Employee ID:", 0, 1);
-
         txtSearch = createField();
-        // NEW: Validation to allow only digits in Employee ID Search field
         txtSearch.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyTyped(KeyEvent e) {
-                if (!Character.isDigit(e.getKeyChar())) {
-                    e.consume(); // Ignore non-digit characters
-                }
-            }
+            public void keyTyped(KeyEvent e) { if (!Character.isDigit(e.getKeyChar())) e.consume(); }
         });
         formContainer.add(txtSearch, getGbc(1, 1));
-
         btnSearch = new JButton("🔍 Search Employee");
-        btnSearch.setPreferredSize(new Dimension(180, 35));
-        btnSearch.setBackground(new Color(153, 153, 255));
-        btnSearch.setForeground(Color.WHITE);
-        btnSearch.setFont(new Font("SansSerif", Font.BOLD, 13));
+        btnSearch.setPreferredSize(new Dimension(180, 35)); btnSearch.setBackground(new Color(153, 153, 255)); btnSearch.setForeground(Color.WHITE);
         formContainer.add(btnSearch, getGbc(2, 1));
 
-        // Horizontal Separator
-        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 4;
-        gbc.insets = new Insets(10, 0, 30, 0);
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 4; gbc.insets = new Insets(10, 0, 30, 0);
         formContainer.add(new JSeparator(), gbc);
 
-        // --- 3. INPUT FIELDS (Two Columns) ---
-        gbc.gridwidth = 1;
-        gbc.insets = new Insets(12, 10, 12, 10);
+        // Input Fields (Design kept same)
+        gbc.gridwidth = 1; gbc.insets = new Insets(12, 10, 12, 10);
         int r = 3;
+        addLabel(formContainer, "Employee Name:", 0, r); txtName = createField(); txtName.setEditable(false); txtName.setBackground(new Color(245, 245, 245)); formContainer.add(txtName, getGbc(1, r++));
+        addLabel(formContainer, "Designation:", 0, r); txtDesignation = createField(); txtDesignation.setEditable(false); txtDesignation.setBackground(new Color(245, 245, 245)); formContainer.add(txtDesignation, getGbc(1, r++));
 
-        // Left Column
-        addLabel(formContainer, "Employee Name:", 0, r);
-        txtName = createField(); txtName.setEditable(false);
-        txtName.setBackground(new Color(245, 245, 245));
-        formContainer.add(txtName, getGbc(1, r++));
-
-        addLabel(formContainer, "Designation:", 0, r);
-        txtDesignation = createField(); txtDesignation.setEditable(false);
-        txtDesignation.setBackground(new Color(245, 245, 245));
-        formContainer.add(txtDesignation, getGbc(1, r++));
-
-        // Right Column
         int rightR = 3;
         addLabel(formContainer, "Salary Month:", 2, rightR);
-        JPanel datePnl = new JPanel(new GridLayout(1, 2, 10, 0));
-        datePnl.setOpaque(false);
+        JPanel datePnl = new JPanel(new GridLayout(1, 2, 10, 0)); datePnl.setOpaque(false);
         cmbMonth = new JComboBox<>(new String[]{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"});
         cmbYear = new JComboBox<>(new String[]{"2024", "2025", "2026"});
-        datePnl.add(cmbMonth); datePnl.add(cmbYear);
-        formContainer.add(datePnl, getGbc(3, rightR++));
-
-        addLabel(formContainer, "Amount to Pay:", 2, rightR);
-        txtAmount = createField();
-        // Validation: Only allow digits and decimal for payment amount
-        txtAmount.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyTyped(KeyEvent e) {
-                char c = e.getKeyChar();
-                if (!Character.isDigit(c) && c != '.') e.consume();
-            }
-        });
+        datePnl.add(cmbMonth); datePnl.add(cmbYear); formContainer.add(datePnl, getGbc(3, rightR++));
+        addLabel(formContainer, "Amount to Pay:", 2, rightR); txtAmount = createField();
+        txtAmount.addKeyListener(new KeyAdapter() { public void keyTyped(KeyEvent e) { char c = e.getKeyChar(); if (!Character.isDigit(c) && c != '.') e.consume(); }});
         formContainer.add(txtAmount, getGbc(3, rightR++));
 
-        // --- 4. HISTORY TABLE ---
-        gbc.gridx = 0; gbc.gridy = Math.max(r, rightR); gbc.gridwidth = 4;
-        gbc.insets = new Insets(30, 0, 10, 0);
+        // History Table
+        gbc.gridx = 0; gbc.gridy = Math.max(r, rightR); gbc.gridwidth = 4; gbc.insets = new Insets(30, 0, 10, 0);
         JLabel lblTable = new JLabel("PAYMENT HISTORY", SwingConstants.CENTER);
-        lblTable.setFont(new Font("SansSerif", Font.BOLD, 16));
-        formContainer.add(lblTable, gbc);
+        lblTable.setFont(new Font("SansSerif", Font.BOLD, 16)); formContainer.add(lblTable, gbc);
 
         model = new DefaultTableModel(new String[]{"Month-Year", "Amount Paid", "Payment Date"}, 0);
-        salaryTable = new JTable(model) {
-            @Override
-            public boolean isCellEditable(int row, int column) { return false; }
-        };
-        salaryTable.setRowHeight(25);
-        JScrollPane tableScroll = new JScrollPane(salaryTable);
+        salaryTable = new JTable(model) { public boolean isCellEditable(int r, int c) { return false; } };
+        salaryTable.setRowHeight(25); JScrollPane tableScroll = new JScrollPane(salaryTable);
         tableScroll.setPreferredSize(new Dimension(800, 150));
-        gbc.gridy++; gbc.insets = new Insets(0, 0, 20, 0);
-        formContainer.add(tableScroll, gbc);
+        gbc.gridy++; gbc.insets = new Insets(0, 0, 20, 0); formContainer.add(tableScroll, gbc);
 
-        // --- 5. ACTION BUTTONS ---
-        JPanel btnPnl = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 0));
-        btnPnl.setOpaque(false);
-
-        btnPay = new JButton("Confirm Payment");
-        btnPay.setBackground(new Color(39, 174, 96));
-        btnPay.setForeground(Color.WHITE);
-        btnPay.setPreferredSize(new Dimension(180, 45));
-        btnPay.setFont(new Font("SansSerif", Font.BOLD, 14));
-        btnPay.setEnabled(false);
-
-        btnClear = new JButton("Clear Form");
-        btnClear.setPreferredSize(new Dimension(140, 45));
-        btnClear.setFont(new Font("SansSerif", Font.BOLD, 14));
-
+        // Buttons
+        JPanel btnPnl = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 0)); btnPnl.setOpaque(false);
+        btnPay = new JButton("Confirm Payment"); btnPay.setBackground(new Color(39, 174, 96)); btnPay.setForeground(Color.WHITE); btnPay.setPreferredSize(new Dimension(180, 45)); btnPay.setEnabled(false);
+        btnClear = new JButton("Clear Form"); btnClear.setPreferredSize(new Dimension(140, 45));
         btnPnl.add(btnPay); btnPnl.add(btnClear);
-        gbc.gridy++; gbc.insets = new Insets(30, 0, 0, 0);
-        formContainer.add(btnPnl, gbc);
+        gbc.gridy++; gbc.insets = new Insets(30, 0, 0, 0); formContainer.add(btnPnl, gbc);
 
         wrapper.add(formContainer);
-
-        // Final Scroll Pane for responsiveness
-        JScrollPane mainScroll = new JScrollPane(wrapper);
-        mainScroll.setBorder(null);
+        JScrollPane mainScroll = new JScrollPane(wrapper); mainScroll.setBorder(null);
         mainScroll.getVerticalScrollBar().setUnitIncrement(16);
         add(mainScroll, BorderLayout.CENTER);
 
-        // --- BUTTON LOGIC ---
+        // --- ACTIONS: Delegating to Controller ---
 
         btnSearch.addActionListener(e -> {
-            String id = txtSearch.getText().trim();
-            if(id.isEmpty()) return;
-            Employee emp = dao.getEmployeeByID(id);
+            Employee emp = controller.handleSearch(txtSearch.getText().trim(), this);
             if (emp != null) {
-                txtName.setText(emp.name);
-                txtDesignation.setText(emp.designation);
-                refreshTable();
-                btnPay.setEnabled(true);
-            } else {
-                JOptionPane.showMessageDialog(this, "Employee ID Not Found!");
-                clearForm();
-            }
+                txtName.setText(emp.name); txtDesignation.setText(emp.designation);
+                refreshTable(); btnPay.setEnabled(true);
+            } else clearForm();
         });
 
         btnPay.addActionListener(e -> {
@@ -186,20 +109,9 @@ public class EmployeeSalaryView extends JPanel {
             String amountStr = txtAmount.getText().trim();
             String monthStr = cmbMonth.getSelectedItem() + "-" + cmbYear.getSelectedItem();
 
-            if(amountStr.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Please enter an amount!", "Input Error", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-
-            if(dao.isSalaryPaid(id, monthStr)) {
-                JOptionPane.showMessageDialog(this, "Salary already paid for " + monthStr, "Payment Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            if(dao.saveSalary(id, monthStr, Double.parseDouble(amountStr))) {
-                JOptionPane.showMessageDialog(this, "Salary Payment Recorded Successfully!");
-                refreshTable();
+            if (controller.handleSalaryPayment(id, monthStr, amountStr, this)) {
                 txtAmount.setText("");
+                refreshTable();
             }
         });
 
@@ -208,38 +120,12 @@ public class EmployeeSalaryView extends JPanel {
 
     private void refreshTable() {
         model.setRowCount(0);
-        List<Object[]> list = dao.getSalaryHistory(txtSearch.getText().trim());
-        for(Object[] row : list) model.addRow(row);
+        List<Object[]> history = controller.getSalaryHistory(txtSearch.getText().trim());
+        for(Object[] row : history) model.addRow(row);
     }
 
-    private JTextField createField() {
-        JTextField f = new JTextField();
-        f.setPreferredSize(new Dimension(250, 35));
-        f.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        return f;
-    }
-
-    private void addLabel(JPanel p, String t, int x, int y) {
-        JLabel l = new JLabel(t);
-        l.setFont(new Font("SansSerif", Font.BOLD, 14));
-        GridBagConstraints g = new GridBagConstraints();
-        g.gridx = x; g.gridy = y;
-        g.anchor = GridBagConstraints.WEST;
-        g.insets = new Insets(12, 10, 12, 5);
-        p.add(l, g);
-    }
-
-    private GridBagConstraints getGbc(int x, int y) {
-        GridBagConstraints g = new GridBagConstraints();
-        g.gridx = x; g.gridy = y;
-        g.fill = GridBagConstraints.HORIZONTAL;
-        g.weightx = 1.0;
-        g.insets = new Insets(12, 5, 12, 10);
-        return g;
-    }
-
-    private void clearForm() {
-        txtSearch.setText(""); txtName.setText(""); txtDesignation.setText(""); txtAmount.setText("");
-        model.setRowCount(0); btnPay.setEnabled(false);
-    }
+    private JTextField createField() { JTextField f = new JTextField(); f.setPreferredSize(new Dimension(250, 35)); f.setFont(new Font("SansSerif", Font.PLAIN, 14)); return f; }
+    private void addLabel(JPanel p, String t, int x, int y) { JLabel l = new JLabel(t); l.setFont(new Font("SansSerif", Font.BOLD, 14)); GridBagConstraints g = new GridBagConstraints(); g.gridx = x; g.gridy = y; g.anchor = GridBagConstraints.WEST; g.insets = new Insets(12, 10, 12, 5); p.add(l, g); }
+    private GridBagConstraints getGbc(int x, int y) { GridBagConstraints g = new GridBagConstraints(); g.gridx = x; g.gridy = y; g.fill = GridBagConstraints.HORIZONTAL; g.weightx = 1.0; g.insets = new Insets(12, 5, 12, 10); return g; }
+    private void clearForm() { txtSearch.setText(""); txtName.setText(""); txtDesignation.setText(""); txtAmount.setText(""); model.setRowCount(0); btnPay.setEnabled(false); }
 }

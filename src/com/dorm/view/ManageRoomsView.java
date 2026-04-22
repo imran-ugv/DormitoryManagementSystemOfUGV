@@ -1,11 +1,9 @@
 package com.dorm.view;
 
-import com.dorm.model.DormitoryDAO;
+import com.dorm.controller.RoomController; // Import Controller
 import com.dorm.model.Room;
 import javax.swing.*;
-import javax.swing.border.CompoundBorder;
-import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
+import javax.swing.border.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
@@ -17,9 +15,12 @@ public class ManageRoomsView extends JPanel {
     private JButton btnUpdate, btnDelete, btnClear;
     private JTable roomTable;
     private DefaultTableModel tableModel;
-    private DormitoryDAO dao = new DormitoryDAO();
+
+    // Instantiate Controller
+    private RoomController controller = new RoomController();
 
     public ManageRoomsView() {
+        // Setup UI
         setBackground(new Color(245, 245, 245));
         setLayout(new GridBagLayout());
 
@@ -43,15 +44,13 @@ public class ManageRoomsView extends JPanel {
         mainCard.add(lblHeader, gbc);
 
         // 2. Input Row
-        gbc.gridwidth = 1;
-        gbc.gridy = 1;
-
+        gbc.gridwidth = 1; gbc.gridy = 1;
         gbc.gridx = 0;
         mainCard.add(new JLabel("Room Number:"), gbc);
         gbc.gridx = 1;
         txtRoomNumber = new JTextField();
         txtRoomNumber.setPreferredSize(new Dimension(150, 35));
-        txtRoomNumber.setEditable(false); // Should not change room number
+        txtRoomNumber.setEditable(false);
         mainCard.add(txtRoomNumber, gbc);
 
         gbc.gridx = 2;
@@ -61,7 +60,7 @@ public class ManageRoomsView extends JPanel {
         cmbActive.setPreferredSize(new Dimension(100, 35));
         mainCard.add(cmbActive, gbc);
 
-        // 3. Action Buttons Row
+        // 3. Action Buttons
         gbc.gridy = 2; gbc.gridx = 0; gbc.gridwidth = 4;
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
         btnPanel.setOpaque(false);
@@ -80,13 +79,14 @@ public class ManageRoomsView extends JPanel {
         btnPanel.add(btnUpdate); btnPanel.add(btnDelete); btnPanel.add(btnClear);
         mainCard.add(btnPanel, gbc);
 
-        // 4. Search and Table Title
+        // 4. Table Header
         gbc.gridy = 3; gbc.gridwidth = 4;
         JLabel lblTable = new JLabel("SELECT A ROOM TO MANAGE", SwingConstants.CENTER);
         lblTable.setFont(new Font("Serif", Font.BOLD, 18));
         lblTable.setBorder(new EmptyBorder(20, 0, 10, 0));
         mainCard.add(lblTable, gbc);
 
+        // 5. Search Bar
         gbc.gridy = 4;
         JPanel searchPnl = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         searchPnl.setOpaque(false);
@@ -95,7 +95,7 @@ public class ManageRoomsView extends JPanel {
         searchPnl.add(txtSearch);
         mainCard.add(searchPnl, gbc);
 
-        // 5. Table
+        // 6. Table
         gbc.gridy = 5;
         tableModel = new DefaultTableModel(new String[]{"Room Number", "Active", "Room Status"}, 0);
         roomTable = new JTable(tableModel);
@@ -106,7 +106,7 @@ public class ManageRoomsView extends JPanel {
 
         add(mainCard);
 
-        // --- LOGIC ---
+        // --- INTERACTION LOGIC ---
 
         roomTable.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
@@ -116,32 +116,25 @@ public class ManageRoomsView extends JPanel {
             }
         });
 
+        // Update delegated to Controller
         btnUpdate.addActionListener(e -> {
             int row = roomTable.getSelectedRow();
             if (row != -1) {
-                String status = tableModel.getValueAt(row, 2).toString();
-                if (status.equals("Booked")) {
-                    JOptionPane.showMessageDialog(this, "Booked rooms cannot be modified!");
-                } else {
-                    dao.updateRoom(txtRoomNumber.getText(), cmbActive.getSelectedItem().toString());
-                    JOptionPane.showMessageDialog(this, "Status Updated!");
-                    refreshTable(dao.getAllRooms());
+                String currentStatus = tableModel.getValueAt(row, 2).toString();
+                if (controller.handleUpdate(txtRoomNumber.getText(), cmbActive.getSelectedItem().toString(), currentStatus, this)) {
+                    refreshTable(controller.getAllRooms());
                 }
             }
         });
 
+        // Delete delegated to Controller
         btnDelete.addActionListener(e -> {
             int row = roomTable.getSelectedRow();
             if (row != -1) {
-                String status = tableModel.getValueAt(row, 2).toString();
-                if (status.equals("Booked")) {
-                    JOptionPane.showMessageDialog(this, "Booked rooms cannot be deleted!");
-                } else {
-                    int confirm = JOptionPane.showConfirmDialog(this, "Delete this room?", "Confirm", JOptionPane.YES_NO_OPTION);
-                    if (confirm == JOptionPane.YES_OPTION) {
-                        dao.deleteRoom(txtRoomNumber.getText());
-                        refreshTable(dao.getAllRooms());
-                    }
+                String currentStatus = tableModel.getValueAt(row, 2).toString();
+                if (controller.handleDelete(txtRoomNumber.getText(), currentStatus, this)) {
+                    refreshTable(controller.getAllRooms());
+                    txtRoomNumber.setText("");
                 }
             }
         });
@@ -154,11 +147,12 @@ public class ManageRoomsView extends JPanel {
 
         txtSearch.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyReleased(java.awt.event.KeyEvent evt) {
-                refreshTable(dao.searchRooms(txtSearch.getText().trim()));
+                refreshTable(controller.searchRooms(txtSearch.getText().trim()));
             }
         });
 
-        refreshTable(dao.getAllRooms());
+        // Initial Load
+        refreshTable(controller.getAllRooms());
     }
 
     private void refreshTable(List<Room> list) {
